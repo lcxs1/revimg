@@ -1,0 +1,192 @@
+[
+  {
+    "attack": "(none)",
+    "ok": true,
+    "psnr": 99.0,
+    "ssim": 1.0,
+    "mode": "-",
+    "pages": "-",
+    "decode_s": 0.0,
+    "detail": ""
+  },
+  {
+    "attack": "jpeg50",
+    "ok": true,
+    "psnr": 29.65,
+    "ssim": 0.8014,
+    "mode": "fine",
+    "pages": "256/256",
+    "decode_s": 0.61,
+    "detail": "cover=100%"
+  },
+  {
+    "attack": "jpeg25",
+    "ok": true,
+    "psnr": 29.54,
+    "ssim": 0.8456,
+    "mode": "fine",
+    "pages": "256/256",
+    "decode_s": 0.61,
+    "detail": "cover=100%"
+  },
+  {
+    "attack": "jpeg12",
+    "ok": true,
+    "psnr": 27.44,
+    "ssim": 0.6756,
+    "mode": "mosaic",
+    "pages": "0/0",
+    "decode_s": 10.83,
+    "detail": "cover=0%"
+  },
+  {
+    "attack": "save_q95",
+    "ok": true,
+    "psnr": 30.24,
+    "ssim": 0.8472,
+    "mode": "fine",
+    "pages": "256/256",
+    "decode_s": 0.61,
+    "detail": "cover=100%"
+  },
+  {
+    "attack": "save_q85",
+    "ok": true,
+    "psnr": 30.07,
+    "ssim": 0.8254,
+    "mode": "fine",
+    "pages": "256/256",
+    "decode_s": 0.61,
+    "detail": "cover=100%"
+  },
+  {
+    "attack": "save_q75",
+    "ok": true,
+    "psnr": 29.93,
+    "ssim": 0.814,
+    "mode": "fine",
+    "pages": "256/256",
+    "decode_s": 0.61,
+    "detail": "cover=100%"
+  },
+  {
+    "attack": "crop50",
+    "ok": true,
+    "psnr": 30.24,
+    "ssim": 0.88,
+    "mode": "fine+coarse",
+    "pages": "100/100",
+    "decode_s": 3.48,
+    "detail": "cover=49%"
+  },
+  {
+    "attack": "crop25",
+    "ok": false,
+    "psnr": 0.0,
+    "ssim": 0.0,
+    "mode": "fail",
+    "pages": "0",
+    "decode_s": 6.11,
+    "detail": "payload not recoverable"
+  },
+  {
+    "attack": "crop10",
+    "ok": false,
+    "psnr": 0.0,
+    "ssim": 0.0,
+    "mode": "fail",
+    "pages": "0",
+    "decode_s": 1.78,
+    "detail": "payload not recoverable"
+  },
+  {
+    "attack": "crop_tl50",
+    "ok": true,
+    "psnr": 30.38,
+    "ssim": 0.8806,
+    "mode": "fine+coarse",
+    "pages": "121/121",
+    "decode_s": 0.55,
+    "detail": "cover=50%"
+  },
+  {
+    "attack": "scribble",
+    "ok": true,
+    "psnr": 27.98,
+    "ssim": 0.8866,
+    "mode": "coarse",
+    "pages": "98/256",
+    "decode_s": 0.59,
+    "detail": "cover=100%"
+  },
+  {
+    "attack": "graffiti",
+    "ok": false,
+    "psnr": 0.0,
+    "ssim": 0.0,
+    "mode": "fail",
+    "pages": "0",
+    "decode_s": 24.7,
+    "detail": "payload not recoverable"
+  },
+  {
+    "attack": "blobs",
+    "ok": true,
+    "psnr": 16.18,
+    "ssim": 0.8488,
+    "mode": "fine",
+    "pages": "194/256",
+    "decode_s": 0.59,
+    "detail": "cover=100%"
+  },
+  {
+    "attack": "watermark",
+    "ok": true,
+    "psnr": 19.9,
+    "ssim": 0.821,
+    "mode": "fine",
+    "pages": "175/256",
+    "decode_s": 0.6,
+    "detail": "cover=100%"
+  },
+  {
+    "attack": "resize50",
+    "ok": true,
+    "psnr": 29.12,
+    "ssim": 0.8069,
+    "mode": "mosaic",
+    "pages": "0/0",
+    "decode_s": 1.57,
+    "detail": "cover=0%"
+  },
+  {
+    "attack": "resize35",
+    "ok": false,
+    "psnr": 0.0,
+    "ssim": 0.0,
+    "mode": "fail",
+    "pages": "0",
+    "decode_s": 2.18,
+    "detail": "no page decoded"
+  },
+  {
+    "attack": "resize200",
+    "ok": true,
+    "psnr": 35.65,
+    "ssim": 0.8706,
+    "mode": "fine+coarse",
+    "pages": "220/225",
+    "decode_s": 1.39,
+    "detail": "cover=99%"
+  },
+  {
+    "attack": "mix_hard",
+    "ok": false,
+    "psnr": 0.0,
+    "ssim": 0.0,
+    "mode": "fail",
+    "pages": "0",
+    "decode_s": 5.4,
+    "detail": "no page decoded"
+  }
+]

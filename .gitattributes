@@ -1,0 +1,17 @@
+# Normalise line endings: the repo is edited on Windows but consumed everywhere.
+* text=auto eol=lf
+
+*.py    text eol=lf
+*.md    text eol=lf
+*.toml  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.cfg   text eol=lf
+
+# Binary: never diff, never convert
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.ico   binary
