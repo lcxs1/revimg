@@ -4,14 +4,19 @@
 """Drag-and-drop desktop app ("the simple version").
 
 Two large drop zones are the whole interface: drop a picture on 加密 or 还原,
-type a passphrase (it may be empty), and the result is written next to the
-source file.  Nothing is uploaded, nothing needs configuring.
+type a passphrase (it may be empty), then press 开始 (or Enter); the result is
+written next to the source file.  Nothing is uploaded, nothing needs
+configuring.
 
 Design notes
 ------------
+* A drop never starts work by itself.  Dropping only stages the picture and
+  focuses the passphrase box, so an empty field can never encrypt by accident;
+  the user always confirms with the start button (or Enter).
 * Empty passphrase is allowed on purpose.  The core codec refuses an empty
   passphrase, so the GUI substitutes :data:`OPEN_PASSPHRASE`; the window says
-  plainly that an empty passphrase means "scrambled only, no secrecy".
+  plainly that an empty passphrase means "scrambled only, no secrecy" and asks
+  once more before an encoding run.
 * Encoding and decoding run on a worker thread; the Tk main loop only polls a
   queue, so the window never freezes and no Tk call crosses threads.
 * Every failure is translated into a sentence a person can act on -- wrong
@@ -44,16 +49,14 @@ except Exception:  # pragma: no cover - optional at runtime
 
 #: What an empty passphrase means.  A fixed, well-known string keeps the codec
 #: contract ("no empty passphrase") intact while still giving the GUI a
-#: one-click "just scramble it" mode.  Command-line users can pass the same
-#: string with ``-p revimg-open-v1``.
+#: "just scramble it" mode.  The window confirms once before using it, and
+#: command-line users can pass the same string with ``-p revimg-open-v1``.
 OPEN_PASSPHRASE = "revimg-open-v1"
 
 IMAGE_FILETYPES = [
     ("图片文件", "*.png *.jpg *.jpeg *.bmp *.webp *.tif *.tiff *.gif"),
     ("所有文件", "*.*"),
 ]
-IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff",
-                  ".gif", ".ppm", ".pgm", ".ico", ".jfif"}
 
 BG = "#f2f5fa"
 CARD = "#ffffff"
@@ -174,7 +177,6 @@ class DropZone(tk.Frame):
         self.app = app
         self.mode = mode
         self._enabled = True
-        self._normal_bg = CARD
         self._hover_bg = ACCENT_SOFT
         self.grid_propagate(False)
 
@@ -250,9 +252,9 @@ class RevimgApp(_Base):
         self.minsize(760, 660)
         self._queue: queue.Queue = queue.Queue()
         self._busy = False
+        self._pending: tuple[str, pathlib.Path] | None = None
         self._last_output: pathlib.Path | None = None
         self._photo = None
-        self._current: pathlib.Path | None = None
 
         self.font_family = self._pick_font()
         self._setup_dpi()
@@ -301,7 +303,7 @@ class RevimgApp(_Base):
 
     def _build_ui(self) -> None:
         outer = tk.Frame(self, bg=BG)
-        outer.pack(fill="both", expand=True, padx=22, pady=16)
+        outer.pack(fill="both", expand=True, padx=22, pady=(14, 12))
 
         header = tk.Frame(outer, bg=BG)
         header.pack(fill="x")
@@ -309,12 +311,12 @@ class RevimgApp(_Base):
                  font=(self.font_family, 19, "bold")).pack(anchor="w")
         tk.Label(
             header,
-            text="口令可以留空。把图片拖进下面任意一个框，结果直接存在原图旁边。",
+            text="拖入图片 → 输入口令（可留空）→ 点「开始」。结果直接存在原图旁边。",
             bg=BG, fg=MUTED, font=(self.font_family, 10),
         ).pack(anchor="w", pady=(3, 0))
 
         zones = tk.Frame(outer, bg=BG)
-        zones.pack(fill="x", pady=(14, 0))
+        zones.pack(fill="x", pady=(12, 0))
         zones.grid_columnconfigure(0, weight=1)
         zones.grid_columnconfigure(1, weight=1)
         self.enc_zone = DropZone(zones, self, "encode", "加密图片",
@@ -326,7 +328,7 @@ class RevimgApp(_Base):
 
         info = tk.Frame(outer, bg=CARD, highlightthickness=1,
                         highlightbackground=BORDER)
-        info.pack(fill="x", pady=(14, 0))
+        info.pack(fill="x", pady=(12, 0))
         self._preview = tk.Label(info, bg=CARD, width=132, height=88,
                                  text="预览", fg=FAINT,
                                  font=(self.font_family, 9))
@@ -346,7 +348,7 @@ class RevimgApp(_Base):
         self._result.pack(fill="x", pady=(4, 0))
 
         pw = tk.Frame(outer, bg=BG)
-        pw.pack(fill="x", pady=(14, 0))
+        pw.pack(fill="x", pady=(12, 0))
         tk.Label(pw, text="口令", bg=BG, fg=INK,
                  font=(self.font_family, 10, "bold")).pack(side="left")
         self._pw_var = tk.StringVar()
@@ -366,21 +368,29 @@ class RevimgApp(_Base):
             font=(self.font_family, 9),
         )
         self._show_check.pack(side="left")
+        # The drop zones only stage the file; this button (or Enter) is the
+        # explicit confirmation that starts the actual work.
+        self._start_btn = self._button(pw, "开始加密", self._confirm_start, primary=True)
+        self._start_btn.pack(side="left", padx=(10, 0))
+        for entry in (self._pw_entry, self._start_btn):
+            entry.bind("<Return>", self._confirm_start)
+            entry.bind("<KP_Enter>", self._confirm_start)
+        self._set_start_enabled(False)
 
         self._pw_hint = tk.Label(outer, text="", bg=BG, fg=AMBER,
                                  font=(self.font_family, 9), anchor="w")
-        self._pw_hint.pack(fill="x", pady=(5, 0))
+        self._pw_hint.pack(fill="x", pady=(4, 0))
 
         status_row = tk.Frame(outer, bg=BG)
-        status_row.pack(fill="x", pady=(10, 0))
+        status_row.pack(fill="x", pady=(8, 0))
         self._progress = ttk.Progressbar(status_row, mode="indeterminate", length=180)
-        self._status = tk.Label(status_row, text="就绪：拖一张图片到上面开始",
+        self._status = tk.Label(status_row, text="就绪：把图片拖进上面任意一个框",
                                 bg=BG, fg=MUTED, font=(self.font_family, 10),
                                 anchor="w", justify="left", wraplength=580)
         self._status.pack(side="left", fill="x", expand=True, padx=(0, 0))
 
         actions = tk.Frame(outer, bg=BG)
-        actions.pack(fill="x", pady=(10, 0))
+        actions.pack(fill="x", pady=(8, 0))
         self._clear_btn = self._button(actions, "清除", self.reset)
         self._clear_btn.pack(side="left")
         self._copy_btn = self._button(actions, "复制路径", self._copy_path)
@@ -395,7 +405,7 @@ class RevimgApp(_Base):
             outer,
             text="加密后的图片能正常打开、预览；被裁剪或重新压缩后，仍能还原未被破坏的部分。",
             bg=BG, fg=FAINT, font=(self.font_family, 8),
-        ).pack(side="bottom", anchor="w", pady=(12, 0))
+        ).pack(side="bottom", anchor="w", pady=(8, 0))
 
         icon = _resource("assets/revimg.ico")
         if icon is not None:
@@ -427,6 +437,15 @@ class RevimgApp(_Base):
                 fg=INK if enabled else FAINT,
             )
 
+    def _set_start_enabled(self, enabled: bool) -> None:
+        self._start_btn.configure(
+            state="normal" if enabled else "disabled",
+            bg=ACCENT if enabled else "#dde4ee",
+            fg="#ffffff" if enabled else "#98a2b3",
+            activebackground=ACCENT_DARK if enabled else "#dde4ee",
+            cursor="hand2" if enabled else "arrow",
+        )
+
     def _on_password_change(self) -> None:
         raw = self._pw_var.get()
         if raw:
@@ -434,12 +453,14 @@ class RevimgApp(_Base):
                 text="口令只在本机内存里使用，不会上传，也不会写入任何文件。", fg=MUTED)
         else:
             self._pw_hint.configure(
-                text="留空 = 只打乱、不加密：谁拿到这张图，用空口令就能还原。", fg=AMBER)
+                text="留空 = 只打乱、不加密：谁拿到这张图，用空口令就能还原"
+                     "（点「开始」时会再确认一次）。",
+                fg=AMBER)
 
     def _toggle_password(self) -> None:
         self._pw_entry.configure(show="" if self._show_var.get() else "•")
 
-    def _show_thumb(self, path: pathlib.Path, caption: str = "") -> None:
+    def _show_thumb(self, path: pathlib.Path) -> None:
         try:
             with Image.open(path) as im:
                 thumb = im.convert("RGB")
@@ -448,10 +469,10 @@ class RevimgApp(_Base):
             self._preview.configure(image=self._photo, text="", width=128, height=88)
         except Exception:
             self._photo = None
-            self._preview.configure(image="", text=caption or "无预览")
+            self._preview.configure(image="", text="无预览")
 
-    def set_file(self, path: pathlib.Path) -> None:
-        self._current = path
+    def set_file(self, path: pathlib.Path) -> bool:
+        """Show a preview.  False when the path is not a readable image."""
         self._last_output = None
         try:
             with Image.open(path) as im:
@@ -464,12 +485,14 @@ class RevimgApp(_Base):
             self._detail.configure(
                 text=f"{width} × {height} · {_fmt_bytes(size)}\n{path.parent}")
             self._result.configure(text="")
-            self._set_status("已选好图片：拖到上面的框里，或直接点框开始。", "info")
+            self._set_status("已选好图片：拖到上面的框里，输入口令后再点「开始」。", "info")
+            return True
         except (UnidentifiedImageError, OSError) as exc:
             self._show_thumb_error()
             self._name.configure(text=path.name)
             self._detail.configure(text="不是能识别的图片")
             self._set_status(f"读不出这张图片：{exc}", "bad")
+            return False
 
     def _show_thumb_error(self) -> None:
         self._photo = None
@@ -483,7 +506,7 @@ class RevimgApp(_Base):
             parent=self, title="选择图片", filetypes=IMAGE_FILETYPES,
         )
         if chosen:
-            self.start(mode, pathlib.Path(chosen))
+            self._stage(mode, pathlib.Path(chosen))
 
     def handle_drop(self, mode: str, data: str) -> None:
         if self._busy:
@@ -495,18 +518,79 @@ class RevimgApp(_Base):
         paths = [p for p in paths if p]
         if not paths:
             return
-        if len(paths) > 1:
-            self._set_status("一次处理一张，已使用第一张图片。", "warn")
-        self.start(mode, pathlib.Path(paths[0]))
+        note = "一次处理一张，只用了第一张。" if len(paths) > 1 else ""
+        self._stage(mode, pathlib.Path(paths[0]), note)
 
-    def start(self, mode: str, path: pathlib.Path) -> None:
+    def _stage(self, mode: str, path: pathlib.Path, note: str = "") -> None:
+        """Select a file and wait for the user's passphrase and confirmation.
+
+        A drop alone must never start work: the passphrase box is focused and
+        the start button becomes the only way to begin, so an untouched (empty)
+        field cannot encrypt by accident.
+        """
         if self._busy:
             return
         if not path.exists():
             self._error(GuiError(f"找不到文件：{path}", "重新拖一次，或点上面的框选择文件。"))
             return
-        password = _password_for(self._pw_var.get())[0]
-        self._current = path
+        if not self.set_file(path):
+            return
+        self._pending = (mode, path)
+        self._set_result_buttons(False)
+        self._show_pending_prompt(note)
+
+    def _show_pending_prompt(self, note: str = "") -> None:
+        if self._pending is None:
+            return
+        mode = self._pending[0]
+        action = "加密" if mode == "encode" else "还原"
+        self._start_btn.configure(text=f"开始{action}")
+        if mode == "encode":
+            prompt = "输入口令（可留空），然后点「开始加密」或按回车。"
+        else:
+            prompt = "输入加密时用的口令，然后点「开始还原」或按回车。"
+        self._set_status((note + " " + prompt).strip(), "warn" if note else "info")
+        self._set_start_enabled(True)
+        self.after(50, self._focus_password)
+
+    def _focus_password(self) -> None:
+        try:
+            if self._pw_entry.cget("state") == "normal":
+                self._pw_entry.focus_set()
+                self._pw_entry.icursor("end")
+        except tk.TclError:
+            pass
+
+    def _confirm_start(self, _event=None):
+        """The user's explicit GO: resolve the passphrase, then start."""
+        if self._busy:
+            return "break"
+        if self._pending is None:
+            self._set_status("先拖一张图片进来，或点上面的框选择文件。", "warn")
+            return "break"
+        mode, path = self._pending
+        password, empty = _password_for(self._pw_var.get())
+        if empty and mode == "encode":
+            proceed = messagebox.askyesno(
+                "口令为空",
+                "口令是空的：加密后的图片只会被打乱，不会被加密。\n"
+                "谁拿到这张图，用空口令就能还原。\n\n"
+                "仍然继续吗？",
+                parent=self, default="no",
+            )
+            if not proceed:
+                self._set_status("已取消：口令为空。输入口令后再点「开始加密」。", "warn")
+                self._focus_password()
+                return "break"
+        self.start(mode, path, password)
+        return "break"
+
+    def start(self, mode: str, path: pathlib.Path, password: str) -> None:
+        if self._busy:
+            return
+        if not path.exists():
+            self._error(GuiError(f"找不到文件：{path}", "重新拖一次，或点上面的框选择文件。"))
+            return
         self._last_output = None
         self._result.configure(text="")
         self._set_result_buttons(False)
@@ -530,12 +614,16 @@ class RevimgApp(_Base):
         self._show_check.configure(state=state)
         self._clear_btn.configure(state=state)
         if busy:
+            self._set_start_enabled(False)
             self._progress.pack(side="right", padx=(10, 0))
             self._progress.start(12)
             self._set_status(message, "info")
         else:
             self._progress.stop()
             self._progress.pack_forget()
+            # A failed run keeps the file staged so the user can fix the
+            # passphrase and press 开始 again without dropping the file anew.
+            self._set_start_enabled(self._pending is not None)
 
     def _work(self, mode: str, path: pathlib.Path, password: str) -> None:
         try:
@@ -585,15 +673,7 @@ class RevimgApp(_Base):
         except GuiError as exc:
             self._queue.put(("error", exc))
         except ValueError as exc:
-            message = str(exc)
-            if "too small" in message:
-                hint = "至少需要约 256×256 像素；建议长边 2000 像素以上。"
-                self._queue.put(("error", GuiError("图片太小，放不下载荷。", hint)))
-            else:
-                self._queue.put(("error", GuiError(f"处理失败：{message}", "")))
-        except UnidentifiedImageError:
-            self._queue.put(("error", GuiError(
-                "无法识别这张图片。", "支持 PNG / JPG / BMP / WebP / GIF / TIFF。")))
+            self._queue.put(("error", GuiError(f"处理失败：{exc}", "")))
         except MemoryError:
             self._queue.put(("error", GuiError(
                 "内存不够，处理不了这么大的图片。", "换一张小一点的图片试试。")))
@@ -614,6 +694,7 @@ class RevimgApp(_Base):
             self._finish_error(payload)
 
     def _finish_ok(self, result: dict) -> None:
+        self._pending = None
         self._set_busy(False)
         out: pathlib.Path = result["out"]
         self._last_output = out
@@ -649,7 +730,7 @@ class RevimgApp(_Base):
     def reset(self) -> None:
         if self._busy:
             return
-        self._current = None
+        self._pending = None
         self._last_output = None
         self._photo = None
         self._preview.configure(image="", text="预览", width=132, height=88)
@@ -657,7 +738,9 @@ class RevimgApp(_Base):
         self._detail.configure(text="拖一张图片进来，或点一下上面的框")
         self._result.configure(text="")
         self._set_result_buttons(False)
-        self._set_status("就绪：拖一张图片到上面开始", "info")
+        self._set_start_enabled(False)
+        self._start_btn.configure(text="开始加密")
+        self._set_status("就绪：把图片拖进上面任意一个框", "info")
 
     # -- output actions ------------------------------------------------
     def _open_output(self) -> None:
@@ -730,10 +813,34 @@ def _selftest(report_path: str | None) -> int:
         _selftest_image(640).save(source)
         lines.append(f"sample: {source}")
 
+        # 1. A real drop must only stage the file -- never start work.
         app._pw_var.set("")
-        # Simulate a real drop: tkdnd delivers paths as a Tcl list, so pass the
-        # brace-quoted form the event would carry.
+        # tkdnd delivers paths as a Tcl list, so pass the brace-quoted form the
+        # event would carry.
         app.handle_drop("encode", "{" + str(source) + "}")
+        if app._pending is None:
+            raise RuntimeError("drop did not stage the image")
+        app.update()
+        if app._busy or app._last_output is not None:
+            raise RuntimeError("drop started work by itself")
+        lines.append("drop: staged, waiting for passphrase")
+
+        # 2. An empty passphrase stays allowed, but needs an explicit "yes".
+        original_ask = messagebox.askyesno
+        try:
+            messagebox.askyesno = lambda *_a, **_k: False
+            app._confirm_start()
+            app.update()
+            if app._busy or app._last_output is not None:
+                raise RuntimeError("empty passphrase was used without confirmation")
+            if app._pending is None:
+                raise RuntimeError("declining the confirmation dropped the image")
+            lines.append("empty passphrase: declined, nothing done")
+
+            messagebox.askyesno = lambda *_a, **_k: True
+            app._confirm_start()
+        finally:
+            messagebox.askyesno = original_ask
         if not _pump_until_idle(app, 120) or app._last_output is None:
             raise RuntimeError("encode did not finish")
         encoded = pathlib.Path(app._last_output)
@@ -741,7 +848,15 @@ def _selftest(report_path: str | None) -> int:
             raise RuntimeError("encode wrote no file")
         lines.append(f"encode: {encoded.name} ({encoded.stat().st_size} B)")
 
-        app.start("decode", encoded)
+        # 3. Decoding goes through the same stage-then-confirm gate.
+        app._pw_var.set("")
+        app.handle_drop("decode", "{" + str(encoded) + "}")
+        if app._pending is None:
+            raise RuntimeError("decode drop did not stage the image")
+        app.update()
+        if app._busy or app._last_output is not None:
+            raise RuntimeError("decode drop started work by itself")
+        app._confirm_start()
         if not _pump_until_idle(app, 120) or app._last_output is None:
             raise RuntimeError("decode did not finish")
         decoded = pathlib.Path(app._last_output)
@@ -770,8 +885,6 @@ def _selftest(report_path: str | None) -> int:
                 pass
         if workdir is not None:
             try:
-                import shutil
-
                 shutil.rmtree(workdir, ignore_errors=True)
             except Exception:
                 pass

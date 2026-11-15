@@ -37,8 +37,6 @@ def encrypt_image(path, password, *, alpha=3.2, delta=None):
     """Encode an image file into a viewable, damage-tolerant carrier."""
     from PIL import Image
 
-    from . import qim
-
     with Image.open(path) as im:
         im.load()
         src = im.convert("RGB")
@@ -49,8 +47,6 @@ def encrypt_image(path, password, *, alpha=3.2, delta=None):
 def decrypt_image(path, password, *, force="auto", delta=None):
     """Recover as much of the original as the surviving data allows."""
     from PIL import Image
-
-    from . import qim
 
     with Image.open(path) as im:
         im.load()

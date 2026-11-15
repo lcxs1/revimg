@@ -45,10 +45,6 @@ def _coeffs(seed: int, idx: int, k: int) -> np.ndarray:
     return c
 
 
-def _rng(seed: int) -> np.random.Generator:
-    return np.random.Generator(np.random.PCG64(int(seed) & 0xFFFFFFFFFFFFFFFF))
-
-
 def split(data: bytes, k: int, bs: int) -> np.ndarray:
     need = k * bs
     if len(data) > need:
@@ -99,8 +95,6 @@ def decode(received: dict, k: int, bs: int, seed: int):
             out[i] = blk
         return out
     missing = [i for i in range(k) if i not in known]
-    if not missing:
-        return None
     rows = []
     rhs = []
     known_idx = np.fromiter(known.keys(), dtype=np.int64, count=len(known))
@@ -168,8 +162,6 @@ def _gauss(A: np.ndarray, B: np.ndarray):
     # back substitution
     X = np.zeros((n, B.shape[1]), dtype=np.uint8)
     for col in range(n - 1, -1, -1):
-        if col not in pivot_row_of_col:
-            return None
         r = pivot_row_of_col[col]
         acc = B[r].copy()
         later = [c for c in range(col + 1, n) if c in pivot_row_of_col]

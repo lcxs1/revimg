@@ -83,7 +83,3 @@ def open_(master: bytes, blob: bytes, aad: bytes = b"") -> bytes | None:
     if not hmac.compare_digest(tag, hmac.new(mac, aad + nonce + ct, hashlib.sha256).digest()[:16]):
         return None
     return bytes(a ^ b for a, b in zip(ct, _ks(enc, len(ct))))
-
-
-def aead_size(n: int) -> int:
-    return n + 32

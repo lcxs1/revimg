@@ -78,12 +78,10 @@ def run(image_path: str, password: str, outdir: str | None = None,
     if names:
         tests = [(k, v) for k, v in tests if k in names]
 
-    rows.append(_row("(none)", A, A, None, carrier, password, 0.0))
+    rows.append(_row("(none)", A, None, password))
     for name, fn in tests:
-        t0 = time.time()
         atk = fn(carrier)
-        t_attack = time.time() - t0
-        r = _row(name, A, A, atk, carrier, password, t_attack)
+        r = _row(name, A, atk, password)
         rows.append(r)
         if outdir:
             d = pathlib.Path(outdir)
@@ -96,10 +94,10 @@ def run(image_path: str, password: str, outdir: str | None = None,
     return rows, erep, enc_s
 
 
-def _row(name, A, _A2, atk, carrier, password, t_attack):
+def _row(name, A, atk, password):
     if atk is None:
         return {"attack": name, "ok": True, "psnr": 99.0, "ssim": 1.0, "mode": "-",
-                "pages": f"-", "decode_s": 0.0, "detail": ""}
+                "pages": "-", "decode_s": 0.0, "detail": ""}
     t0 = time.time()
     out, rep = codec.decode(atk, password)
     dt = time.time() - t0

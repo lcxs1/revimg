@@ -56,7 +56,6 @@ _FAILURE_REASONS = {
     "authentication failed (wrong passphrase?)": "口令不对（也可能图片被改坏）",
     "payload not recoverable": "读到了页面，但残存数据不足以重建",
     "no page decoded": "口令不对，或图片被缩放/严重破坏（找不到可用页面）",
-    "no periodic lattice found": "找不到载荷栅格（图片可能被缩放，或不是本工具生成的图）",
     "corrupt header": "文件头损坏",
     "undecodable thumbnail": "缩略图损坏",
     "geometry outside canvas": "几何位置超出画布",
@@ -232,7 +231,7 @@ def _level(args) -> tuple[float, bool]:
     if not console.interactive():
         return 3.2, False
     console.section("抗破坏强度")
-    for key, name, alpha_value, note in _LEVELS:
+    for key, name, _alpha_value, note in _LEVELS:
         print(f"  {key}. {name:<5} {note}")
     choice = console.ask("请选择", default="1")
     for key, _name, alpha_value, _note in _LEVELS:
@@ -251,7 +250,7 @@ def _banner() -> None:
     console.tip("加密后就是一张普通图片，能预览、能发送；用口令还原。全程离线。")
 
 
-def _encode_summary(src: pathlib.Path, out: pathlib.Path, rep, elapsed: float,
+def _encode_summary(out: pathlib.Path, rep, elapsed: float,
                     lossless: bool) -> None:
     console.success("加密完成", elapsed)
     console.field("输出", str(out))
@@ -354,7 +353,7 @@ def cmd_encode(args) -> int:
     if console.quiet():
         print(out)
     else:
-        _encode_summary(src, out, rep, elapsed, lossless)
+        _encode_summary(out, rep, elapsed, lossless)
     return 0
 
 

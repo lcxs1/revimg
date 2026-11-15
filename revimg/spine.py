@@ -46,10 +46,8 @@ BITS_PER_BLOCK = 2
 PAGE_BLOCKS = 16
 PAGE_PX = BLOCK * PAGE_BLOCKS                            # 128
 PAGE_BITS = PAGE_BLOCKS * PAGE_BLOCKS * BITS_PER_BLOCK    # 512
-PAGE_BYTES = PAGE_BITS // 8                              # 64
 
 SYNC_BITS = 16
-SYNC_BLOCKS = SYNC_BITS // BITS_PER_BLOCK                # 8
 CODE_BYTES = (PAGE_BITS - SYNC_BITS) // 8                # 62
 NSYM = 25                                                # corrects 12 bytes
 MSG_BYTES = CODE_BYTES - NSYM                            # 37
@@ -60,7 +58,6 @@ _OFF_IDX = 2
 _OFF_PX = 4
 _OFF_PY = 5
 _OFF_DATA = 6
-_OFF_CRC = _OFF_DATA + SYM_DATA                          # 35
 
 
 def crc16(data: bytes) -> int:
@@ -120,8 +117,6 @@ def decode_page(blk: np.ndarray, sync: int = 0):
     if fixed is None:
         return None
     return parse_message(fixed[:MSG_BYTES])
-
-
 
 
 class Layout:

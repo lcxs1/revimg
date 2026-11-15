@@ -30,22 +30,10 @@ for _i in range(255, 512):
     EXP[_i] = EXP[_i - 255]
 
 
-class ReedSolomonError(ValueError):
-    pass
-
-
 def gf_mul(a: int, b: int) -> int:
     if a == 0 or b == 0:
         return 0
     return EXP[LOG[a] + LOG[b]]
-
-
-def gf_div(a: int, b: int) -> int:
-    if b == 0:
-        raise ZeroDivisionError("division by zero in GF(256)")
-    if a == 0:
-        return 0
-    return EXP[(LOG[a] - LOG[b]) % 255]
 
 
 def gf_pow(a: int, p: int) -> int:
@@ -169,8 +157,6 @@ def find_error_positions(err_loc, nmess: int):
         if poly_eval(rev, gf_pow(2, i)) == 0:
             pos.append(nmess - 1 - i)
     if len(pos) != nerr:
-        return None
-    if len(set(pos)) != len(pos):
         return None
     return pos
 

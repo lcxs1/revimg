@@ -365,7 +365,7 @@ def candidates(gray: np.ndarray, max_pairs: int = 16, per_axis: int = 6):
         return hyps[:per_axis]
 
     try:
-        px, py = geom.estimate(gray, qim.BLOCK)
+        px, py = geom.estimate(gray)
     except Exception:
         return out
     hx = axis(px) or [(float(qim.BLOCK), 0.0, 1.0)]
@@ -413,8 +413,6 @@ def decode(src: Image.Image, password: str, *, delta=qim.DEFAULT_DELTA,
     rgb = np.asarray(src.convert("RGB"))
     gray = _luma(rgb)
     cands = candidates(gray)[:max_candidates]
-    if not cands:
-        return None, DecodeReport(False, "no periodic lattice found")
 
     last = DecodeReport(False, "no page decoded")
     for pxx, phx, pyy, phy in cands:

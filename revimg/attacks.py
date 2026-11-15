@@ -12,7 +12,7 @@ from __future__ import annotations
 import io
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 
 def jpeg(im: Image.Image, quality: int = 25) -> Image.Image:

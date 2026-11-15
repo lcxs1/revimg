@@ -46,8 +46,6 @@ def _peaks(sig: np.ndarray, lo: float, hi: float, top: int = 3):
     if kmax <= kmin:
         return []
     band = mag[kmin : kmax + 1]
-    if band.size == 0:
-        return []
     out = []
     order = np.argsort(band)[::-1][: max(top * 3, 6)]
     for oi in order:
@@ -179,7 +177,7 @@ def _lattice(sig: np.ndarray, lo: float, hi: float, top: int):
     return out[:top]
 
 
-def estimate(gray: np.ndarray, block: int = 8, lo: float = 2.5, hi: float = 160.0,
+def estimate(gray: np.ndarray, lo: float = 2.5, hi: float = 160.0,
              top: int = 3):
     """Strongest periodicities of the carrier grid, as (period, phase, sharpness).
 

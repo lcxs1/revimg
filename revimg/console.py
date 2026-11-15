@@ -175,10 +175,6 @@ def red(text: str, stream=None) -> str:
     return _paint(text, "31", stream=stream)
 
 
-def magenta(text: str) -> str:
-    return _paint(text, "35")
-
-
 # ---------------------------------------------------------------------- text
 
 def _width(text: str) -> int:

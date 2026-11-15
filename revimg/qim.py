@@ -117,17 +117,3 @@ def extract(luma: np.ndarray, delta=DEFAULT_DELTA) -> np.ndarray:
         q = np.round(2.0 * c[..., u, v] / ds[k]).astype(np.int64)
         out[..., k] = (q & 1).astype(np.uint8)
     return out
-
-
-def soft(luma: np.ndarray, delta=DEFAULT_DELTA) -> np.ndarray:
-    """-> (nh,nw,ncoef) float32 signed distance to the decision boundary.
-
-    Positive means bit 1.  Magnitude is the normalised margin.
-    """
-    ds = _deltas(delta)
-    c = dct2(luma)
-    out = np.empty(c.shape[:2] + (len(COEFFS),), dtype=np.float32)
-    for k, (u, v) in enumerate(COEFFS):
-        r = (2.0 * c[..., u, v] / ds[k]) % 2.0
-        out[..., k] = np.where(r > 1.0, r - 2.0, r)
-    return out
